@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: build, vet, test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Fails the build if netchaos ever stops being an actual dependency
+      # of this module (e.g. someone strips the import and go.mod is left
+      # stale) -- this is the "the lib is really wired in" check.
+      - name: Verify netchaos is a direct dependency
+        shell: bash
+        run: |
+          go list -m github.com/jpgomesr/netchaos
+          go list -deps ./... | grep -q '^github.com/jpgomesr/netchaos$'
+
+      - run: go build ./...
+
+      - run: go vet ./...
+
+      - name: gofmt check
+        shell: bash
+        run: |
+          fmt_out="$(gofmt -l .)"
+          if [ -n "$fmt_out" ]; then
+            echo "$fmt_out"
+            echo "::error::gofmt found unformatted files"
+            exit 1
+          fi
+
+      # -v so the netchaos-backed retry/partition/determinism tests in
+      # internal/client are individually visible in the log, not just a
+      # package-level pass/fail.
+      - run: go test ./... -v
+
+  race:
+    name: race detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./... -race -v
+
+  determinism:
+    name: netchaos determinism (repeat run)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # Re-runs the seeded fault-injection scenario several times to prove
+      # netchaos's headline guarantee holds in CI too, not just locally:
+      # same seed + same call order -> identical fault sequence, every time.
+      - run: go test ./internal/client/ -run TestDeterminism_SameSeed -count=10 -v
+
+  smoke:
+    name: real server smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Runs cmd/api over a real TCP listener -- the same handler the
+      # netchaos tests exercise over a simulated network -- to prove the
+      # chaos-tested code path is the real production code path.
+      - name: Start API
+        run: |
+          ADDR=:8080 go run ./cmd/api &
+          for i in $(seq 1 20); do
+            curl -fs localhost:8080/health && break
+            sleep 0.5
+          done
+
+      - name: Exercise endpoints
+        run: |
+          set -eu
+          curl -fs localhost:8080/health
+          curl -fs -X POST localhost:8080/items \
+            -H 'Content-Type: application/json' \
+            -d '{"id":"sku-2","name":"Gadget","stock":5}'
+          curl -fs localhost:8080/items/sku-2
+          body="$(curl -fs -X POST localhost:8080/items/sku-2/reserve \
+            -H 'Content-Type: application/json' -d '{"qty":2}')"
+          echo "$body"
+          echo "$body" | grep -q '"stock":3'
