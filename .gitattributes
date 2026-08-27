@@ -1,0 +1,12 @@
+# Force LF line endings for source/text files regardless of platform or a
+# developer's core.autocrlf setting. Without this, checking out on Windows
+# (e.g. windows-latest in CI) converts LF -> CRLF, and gofmt -l then flags
+# every file as "unformatted" purely due to line endings, not content.
+* text=auto eol=lf
+
+*.go text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
