@@ -1,4 +1,6 @@
 github.com/go-chi/chi/v5 v5.3.2 h1:5YQkICvTCSZ25hoRsyJazN0scjzKGiu4VAUc7H1o1nY=
 github.com/go-chi/chi/v5 v5.3.2/go.mod h1:R+tYY2hNuVUUjxoPtqUdgBqevM9s9njzkTLutVsOCto=
-github.com/jpgomesr/netchaos v0.1.0 h1:hJrNAlYXwEWgUHlwxhxtzKFY3UDyqIRXYFJCUohCUOY=
-github.com/jpgomesr/netchaos v0.1.0/go.mod h1:Y3MiKL4OPoL/FCA45jgmQTAoZdQmTLKw7b5Ia/2BwGk=
+github.com/jpgomesr/netchaos v0.3.0 h1:MQHGj29wlAlLN41hUNEWFxaNhgjAQ3boxb4UP0DuGDU=
+github.com/jpgomesr/netchaos v0.3.0/go.mod h1:gPuqW8tOhZ+/rgAk3MNZQAMkB7B9aIV1x7pIm37DuEg=
+golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
+golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=

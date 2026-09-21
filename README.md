@@ -1,11 +1,12 @@
 # netchaos-example
 
 A small inventory HTTP API and client, used as the reference example for
-[`netchaos`](https://github.com/jpgomesr/netchaos) — a Go library that
-gives you a simulated, in-process `net.Conn`/`net.Listener` with
-deterministic, seeded fault injection (latency, packet loss, partition),
-so retry/timeout/backoff logic can be tested without a real network, a
-proxy, or a daemon.
+[`netchaos`](https://github.com/jpgomesr/netchaos) `v0.3.0` — a Go library
+that gives you a simulated, in-process `net.Conn`/`net.Listener` with
+deterministic, seeded fault injection (latency, packet loss, bandwidth
+throttling, packet duplication, data corruption, mid-stream reset,
+partition), so retry/timeout/backoff logic can be tested without a real
+network, a proxy, or a daemon.
 
 ```
 go test ./...
@@ -58,6 +59,27 @@ func TestRetries_ThroughPacketLoss(t *testing.T) {
 	})
 }
 ```
+
+Beyond the retry/timeout/partition basics above, `internal/client/client_test.go`
+also covers the fault kinds `v0.2.0`/`v0.3.0` added:
+
+- **`Network.Reset`** — an abrupt `ECONNRESET` on an already-established
+  connection, and the client recovering from it (`TestReset_ClientRecoversAfterAbruptFailure`).
+- **`WithCorruption`** — a flipped bit in a response body the client never
+  even notices at the application level, diagnosed instead via
+  `Network.Trace()`'s `Size`/`CorruptedByte`/`CorruptedBit` fields
+  (`TestCorruption_TraceDiagnosesTheFlippedBit`).
+- **`WithDuplication`** — a duplicated request Write causing this example's
+  non-idempotent reserve handler to double-decrement stock
+  (`TestDuplication_ReplaysTheRequestOnTheWire`).
+- **`SetPacketLoss`** — mutating fault policy on an already-established
+  connection, "healthy → degraded → healthy", without rebuilding the
+  `Network` (`TestSetPacketLoss_DegradesThenRecoversOnLiveConnection`).
+- **`DialerFor` + `WithDialTimeout`** — bounding a wait against a
+  partitioned peer from a plain `net.Dial`-shaped call site
+  (`TestDialerFor_BoundedWaitAgainstPartitionedPeer`).
+- **`WithBandwidth`** — the serialization-clock delay a throttled link adds
+  on top of latency (`TestBandwidth_ThrottlesDelivery`).
 
 A few things this example gets right on purpose, because they're the easy
 ways to get netchaos wrong:
